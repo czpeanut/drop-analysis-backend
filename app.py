@@ -4,8 +4,8 @@ app = Flask(__name__)
 
 # 假資料（確保與你的原始後端一致）
 schools = [
-    {"id": 1, "name": "台北一中", "minScore": 80},
-    {"id": 2, "name": "台中女中", "minScore": 75},
+    {"id": 1, "name": "台南一中", "minScore": 30},
+    {"id": 2, "name": "台中女中", "minScore": 29},
 ]
 
 @app.route("/")
