@@ -1,120 +1,40 @@
 from flask import Flask, request, jsonify
-import sqlite3
-from flask_cors import CORS
-import bcrypt
-import jwt
-import datetime
 
 app = Flask(__name__)
-CORS(app)
-app.config['SECRET_KEY'] = 'your_secret_key'
 
-def get_db_connection():
-    conn = sqlite3.connect('schools.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+# 假資料（確保與你的原始後端一致）
+schools = [
+    {"id": 1, "name": "台北一中", "minScore": 80},
+    {"id": 2, "name": "台中女中", "minScore": 75},
+]
 
-# 建立資料庫與表格
-with get_db_connection() as conn:
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS school_cutoffs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            cutoff_score INTEGER NOT NULL
-        )
-    ''')
-    conn.commit()
+@app.route("/")
+def home():
+    return jsonify({"message": "落點分析後端 Flask API 運行中"})
 
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-
-@app.route('/register', methods=['POST'])
-def register():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    if not username or not password:
-        return jsonify({'error': 'Missing username or password'}), 400
-
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-
-    conn = get_db_connection()
-    try:
-        conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'User registered successfully'}), 201
-    except sqlite3.IntegrityError:
-        return jsonify({'error': 'Username already exists'}), 400
-
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-    conn.close()
-
-    if user and bcrypt.checkpw(password.encode('utf-8'), user['password']):
-        token = jwt.encode({'user': username, 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)}, app.config['SECRET_KEY'], algorithm='HS256')
-        return jsonify({'token': token})
-    else:
-        return jsonify({'error': 'Invalid credentials'}), 401
-
-@app.route('/schools', methods=['GET'])
+# 取得學校清單
+@app.route("/schools", methods=["GET"])
 def get_schools():
-    conn = get_db_connection()
-    schools = conn.execute('SELECT * FROM school_cutoffs').fetchall()
-    conn.close()
-    return jsonify([dict(school) for school in schools])
+    return jsonify(schools)
 
-@app.route('/schools', methods=['POST'])
+# 新增學校
+@app.route("/schools", methods=["POST"])
 def add_school():
     data = request.json
-    name = data.get('name')
-    cutoff_score = data.get('cutoff_score')
+    if not data or "name" not in data or "minScore" not in data:
+        return jsonify({"error": "缺少必要欄位"}), 400
 
-    if not name or cutoff_score is None:
-        return jsonify({'error': 'Missing name or cutoff_score'}), 400
+    new_id = max([s["id"] for s in schools]) + 1 if schools else 1
+    new_school = {"id": new_id, "name": data["name"], "minScore": data["minScore"]}
+    schools.append(new_school)
+    return jsonify(new_school), 201
 
-    conn = get_db_connection()
-    conn.execute('INSERT INTO school_cutoffs (name, cutoff_score) VALUES (?, ?)', (name, cutoff_score))
-    conn.commit()
-    conn.close()
+# 刪除學校
+@app.route("/schools/<int:school_id>", methods=["DELETE"])
+def delete_school(school_id):
+    global schools
+    schools = [s for s in schools if s["id"] != school_id]
+    return jsonify({"message": f"學校 ID {school_id} 已刪除"})
 
-    return jsonify({'message': 'School added successfully'}), 201
-
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    data = request.json
-    scores = data.get('scores')
-
-    conn = get_db_connection()
-    schools = conn.execute('SELECT * FROM school_cutoffs').fetchall()
-    conn.close()
-
-    result = {'safe_schools': [], 'target_schools': [], 'challenge_schools': []}
-    total_score = sum(scores.values())
-
-    for school in schools:
-        cutoff = school['cutoff_score']
-        if total_score >= cutoff + 3:
-            result['safe_schools'].append(school['name'])
-        elif total_score >= cutoff:
-            result['target_schools'].append(school['name'])
-        else:
-            result['challenge_schools'].append(school['name'])
-
-    return jsonify(result)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000, debug=True)
