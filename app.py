@@ -4,7 +4,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)  # ✅ 確保前端可以存取 API
 
-# 假資料
+# 假資料 - 學校清單
 schools = [
     {"id": 1, "name": "台北一中", "minScore": 80},
     {"id": 2, "name": "台中女中", "minScore": 75},
@@ -29,7 +29,7 @@ def add_school():
             return jsonify({"error": "缺少必要欄位"}), 400
 
         new_id = max([s["id"] for s in schools]) + 1 if schools else 1
-        new_school = {"id": new_id, "name": data["name"], "minScore": data["minScore"]}
+        new_school = {"id": new_id, "name": data["name"], "minScore": int(data["minScore"])}
         schools.append(new_school)
         return jsonify(new_school), 201
     except Exception as e:
@@ -47,14 +47,28 @@ def delete_school(school_id):
 def check_schools():
     try:
         data = request.json
-        if "score" not in data or not isinstance(data["score"], int):
-            return jsonify({"error": "請提供有效的數字分數"}), 400
+        print("🔵 收到查詢請求:", data)  # ✅ 檢查後端是否有收到數據
 
-        user_score = int(data["score"])
+        # 確保請求內包含 score，且是整數
+        if "score" not in data:
+            print("❌ 錯誤: 缺少 score 參數")
+            return jsonify({"error": "請提供有效的數字分數"}), 400
+        
+        if not isinstance(data["score"], int):
+            print("❌ 錯誤: score 不是數字，嘗試轉換")
+            try:
+                data["score"] = int(data["score"])  # 嘗試轉換為整數
+            except ValueError:
+                return jsonify({"error": "分數必須是數字"}), 400
+
+        user_score = data["score"]
         matched_schools = [s for s in schools if user_score >= s["minScore"]]
+
+        print("🔵 符合條件的學校:", matched_schools)  # ✅ 確保篩選結果正確
 
         return jsonify(matched_schools)
     except Exception as e:
+        print("❌ 內部錯誤:", str(e))
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
