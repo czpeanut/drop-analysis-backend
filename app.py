@@ -47,8 +47,8 @@ def delete_school(school_id):
 def check_schools():
     try:
         data = request.json
-        if "score" not in data:
-            return jsonify({"error": "請提供分數"}), 400
+        if "score" not in data or not isinstance(data["score"], int):
+            return jsonify({"error": "請提供有效的數字分數"}), 400
 
         user_score = int(data["score"])
         matched_schools = [s for s in schools if user_score >= s["minScore"]]
