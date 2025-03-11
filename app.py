@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # ✅ 確保前端可以正常存取 API
+CORS(app)  # ✅ 確保前端可以存取 API
 
 # 假資料
 schools = [
@@ -40,6 +40,21 @@ def delete_school(school_id):
     global schools
     schools = [s for s in schools if s["id"] != school_id]
     return jsonify({"message": f"學校 ID {school_id} 已刪除"})
+
+# 根據分數查詢可錄取學校
+@app.route("/check", methods=["POST"])
+def check_schools():
+    try:
+        data = request.json
+        if "score" not in data:
+            return jsonify({"error": "請提供分數"}), 400
+
+        user_score = int(data["score"])
+        matched_schools = [s for s in schools if user_score >= s["minScore"]]
+
+        return jsonify(matched_schools)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
