@@ -8,6 +8,7 @@ CORS(app)  # ✅ 確保前端可以存取 API
 schools = [
     {"id": 1, "name": "台北一中", "minScore": 80},
     {"id": 2, "name": "台中女中", "minScore": 75},
+    {"id": 3, "name": "台南一中", "minScore": 70},
 ]
 
 @app.route("/")
